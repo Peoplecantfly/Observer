@@ -1,0 +1,1 @@
+/usr/local/entensys/bin/erl -sname master1 -s admtool start
