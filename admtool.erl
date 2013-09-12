@@ -88,10 +88,7 @@ init(_Args) ->
 	%net_kernel:start('master'),
 	%process_flag(trap_exit, true),
 	Cfg = get_config(),
-	io:format("Cookie:    ~p~n", [Cfg #config.cookie]),
-	io:format("Node:      ~p~n", [Cfg #config.node]),
-	io:format("IP:        ~p~n", [Cfg #config.ip]),
-	ping(),
+	timer:apply_after(100, ?MODULE, ping, []),
 	{ok, Cfg}.
 
 
@@ -117,22 +114,29 @@ handle_call(_Request, From, State) ->
 handle_cast(ping, #config {cookie = Cookie, node = Node, apps = Apps, ip = IP} = State) ->
 	% net_kernel:start(['master', shortnames]),
 	% net_kernel:monitor_nodes(true),
+	io:format("Cookie:      ~p~n", [Cookie]),
+	io:format("Node:        ~p~n", [Node]),
+	io:format("IP:          ~p~n", [IP]),
+
 	erlang:set_cookie(node(), list_to_atom(Cookie)),
 	[_N, Host] = string:tokens(Node, "@"),
 	Atom = list_to_atom(Node),
-	io:format("Ping to >>>> ~p~n", [Atom]),
-	case inet:gethostbyname(Host) of
-		{error, _} ->
+      	io:format("Resolve >>>> ~p~n", [Host]),
+	Resolv = case inet:gethostbyname(Host) of
+		{error, Ret} ->
 			inet_db:add_host(IP, [Host]),
-			inet_db:set_lookup([file, dns, native]);
-		_ -> ok
+			inet_db:set_lookup([file, dns, native]),
+			Ret;
+		Ret ->
+			Ret
 	end,
-
+      	io:format("        >>>> ~p~n", [Resolv]),
+	io:format("Ping to >>>> ~p~n", [Atom]),
 	%io:format("kernel result = ~p~n", [net_kernel:connect(list_to_atom(Node))]),
 	 case net_adm:ping(Atom) of
-		 pang -> io:format("Link status >>>> PANG~n");
+		 pang -> io:format("Status  >>>> PANG~n");
 		 pong ->
-			io:format("Link status >>>> PONG~n"),
+			io:format("Status  >>>> PONG~n"),
 			lists:foreach(fun(App) -> App:start() end, Apps)
 
 	 end,
