@@ -1,2 +1,2 @@
 
-erl  -sname master -s admtool start -hidden
+erl  -sname master -s admtool start 
