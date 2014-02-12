@@ -122,15 +122,15 @@ handle_cast(ping, #config {cookie = Cookie, node = Node, apps = Apps, ip = IP} =
 	[_N, Host] = string:tokens(Node, "@"),
 	Atom = list_to_atom(Node),
       	io:format("Resolve >>>> ~p~n", [Host]),
-	Resolv = case inet:gethostbyname(Host) of
-		{error, Ret} ->
+%	Resolv = case inet:gethostbyname(Host) of
+%		{error, Ret} ->
 			inet_db:add_host(IP, [Host]),
 			inet_db:set_lookup([file, dns, native]),
-			Ret;
-		Ret ->
-			Ret
-	end,
-      	io:format("        >>>> ~p~n", [Resolv]),
+%			Ret;
+%		Ret ->
+%			Ret
+%	end,
+ %     	io:format("        >>>> ~p~n", [Resolv]),
 	io:format("Ping to >>>> ~p~n", [Atom]),
 	%io:format("kernel result = ~p~n", [net_kernel:connect(list_to_atom(Node))]),
 	 case net_adm:ping(Atom) of
