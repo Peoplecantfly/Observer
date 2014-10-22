@@ -6,9 +6,9 @@
 -export([start/1]).
 
 
--export([get_config/0]).
+-export([get_config/1]).
 -export([ping/0]).
-
+-export([convert/1]).
 
 
 
@@ -32,7 +32,7 @@
 		}).
 
 start(Args) ->
-	gen_server:start_link({local, ?SERVER}, ?MODULE, [Args], []).
+	gen_server:start_link({local, ?SERVER}, ?MODULE, Args, []).
 start() ->
 	start([]).
 
@@ -42,6 +42,7 @@ ping() ->
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 parse_cfg(Params) ->
 	parse_cfg(Params,  #config{}).
 
@@ -64,13 +65,15 @@ parse_cfg([{_Key, _Value} | Env], Cfg) ->
 	parse_cfg(Env, Cfg).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-get_config() ->
+get_config(CfgName) ->
 	CfgFile = case application:get_env(admtool, cfg) of
 		{ok, Name} -> Name;
 		_else -> ?CONFIG_FILENAME
 	end,
 	case file:consult(CfgFile) of
-		{ ok, Params } -> parse_cfg(Params);
+		{ ok, Params } ->
+			PP = proplists:get_value(CfgName, Params, []),
+			parse_cfg(PP);
 		{ error, Reason } ->
 			io:format("Can't read http config ~p (reason ~p)~nUsing default config~n", [CfgFile, Reason]),
 			#config{}
@@ -84,10 +87,13 @@ get_config() ->
 %%                         {stop, Reason}
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
-init(_Args) ->
+init(Args) ->
 	%net_kernel:start('master'),
 	%process_flag(trap_exit, true),
-	Cfg = get_config(),
+	[CfgName | _] = Args,
+	Name = string:to_upper(atom_to_list(CfgName)),
+	io:format("~nConnect to  ~p~n", [Name]),
+	Cfg = get_config(CfgName),
 	timer:apply_after(100, ?MODULE, ping, []),
 	{ok, Cfg}.
 
@@ -114,6 +120,7 @@ handle_call(_Request, From, State) ->
 handle_cast(ping, #config {cookie = Cookie, node = Node, apps = Apps, ip = IP} = State) ->
 	% net_kernel:start(['master', shortnames]),
 	% net_kernel:monitor_nodes(true),
+
 	io:format("Cookie:      ~p~n", [Cookie]),
 	io:format("Node:        ~p~n", [Node]),
 	io:format("IP:          ~p~n", [IP]),
@@ -172,3 +179,6 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 
+convert(String) ->
+	Converted = lists:map(fun(X) -> "&#" ++ integer_to_list(X) ++ ";" end, String),
+	io:format("~s", [Converted]).
