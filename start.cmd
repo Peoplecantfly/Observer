@@ -1,1 +1,2 @@
-erl  -sname node1 -s admtool start main 
+erl  -sname main -s admtool start main
+

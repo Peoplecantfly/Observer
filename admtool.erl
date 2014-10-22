@@ -25,8 +25,7 @@
 
 -record(config, {
 			cookie = "123"       :: string(),
-			node = ""            :: string(),
-			ip = {127,0,0,1}     :: inet:ip_address(),
+			nodes = ""            :: string(),
 			apps = [observer]    :: [atom()]
 
 		}).
@@ -51,13 +50,9 @@ parse_cfg([], Cfg) ->
 parse_cfg([{cookie, Val} | Rest], Cfg) ->
 	NewCfg = Cfg #config{cookie = Val},
 	parse_cfg(Rest, NewCfg);
-parse_cfg([{node, Val} | Rest], Cfg) ->
-	NewCfg = Cfg #config{node = Val},
+parse_cfg([{nodes, Val} | Rest], Cfg) ->
+	NewCfg = Cfg #config{nodes = Val},
 	parse_cfg(Rest, NewCfg);
-parse_cfg([{ip, Val} | Rest], Cfg) ->
-	NewCfg = Cfg #config{ip = Val},
-	parse_cfg(Rest, NewCfg);
-
 parse_cfg([{apps, Val} | Rest], Cfg) ->
 	NewCfg = Cfg #config{apps = Val},
 	parse_cfg(Rest, NewCfg);
@@ -117,38 +112,37 @@ handle_call(_Request, From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast(ping, #config {cookie = Cookie, node = Node, apps = Apps, ip = IP} = State) ->
+handle_cast(ping, #config {cookie = Cookie, nodes = Nodes, apps = Apps} = State) ->
 	% net_kernel:start(['master', shortnames]),
 	% net_kernel:monitor_nodes(true),
 
 	io:format("Cookie:      ~p~n", [Cookie]),
-	io:format("Node:        ~p~n", [Node]),
-	io:format("IP:          ~p~n", [IP]),
-
 	erlang:set_cookie(node(), list_to_atom(Cookie)),
-	[_N, Host] = string:tokens(Node, "@"),
-	Atom = list_to_atom(Node),
-      	io:format("Resolve >>>> ~p~n", [Host]),
-%	Resolv = case inet:gethostbyname(Host) of
-%		{error, Ret} ->
-			inet_db:add_host(IP, [Host]),
-			inet_db:set_lookup([file, dns, native]),
-%			Ret;
-%		Ret ->
-%			Ret
-%	end,
- %     	io:format("        >>>> ~p~n", [Resolv]),
-	io:format("Ping to >>>> ~p~n", [Atom]),
-	%io:format("kernel result = ~p~n", [net_kernel:connect(list_to_atom(Node))]),
-	 case net_adm:ping(Atom) of
-		 pang -> io:format("Status  >>>> PANG~n");
-		 pong ->
-			io:format("Status  >>>> PONG~n"),
-			lists:foreach(fun(App) -> App:start() end, Apps)
-
-	 end,
-
-    {noreply, State};
+	inet_db:set_lookup([file, dns, native]),
+	F = fun(NodeInfo, Acc) ->
+		Node = proplists:get_value(name, NodeInfo),
+		IP = proplists:get_value(ip, NodeInfo),
+		io:format("Node:        ~p~n", [Node]),
+		io:format("IP:          ~p~n", [IP]),
+		[_N, Host] = string:tokens(Node, "@"),
+		Atom = list_to_atom(Node),
+		io:format("Resolve >>>> ~p~n", [Host]),
+		inet_db:add_host(IP, [Host]),
+		io:format("Ping to >>>> ~p~n", [Atom]),
+		 case net_adm:ping(Atom) of
+			 pang -> io:format("Status  >>>> PANG~n"),
+			 Acc or false;
+			 pong ->
+				io:format("Status  >>>> PONG~n"),
+				true
+		 end
+	end,
+	case lists:foldl(F, false, Nodes) of
+		true ->
+			lists:foreach(fun(App) -> App:start() end, Apps);
+		_ -> pang
+	end,
+	{noreply, State};
 handle_cast(_Msg, State) ->
 	{noreply, State}.
 
