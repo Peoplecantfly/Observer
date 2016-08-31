@@ -1,1 +1,1 @@
-./erl -sname master1 -s admtool start
+./erl -sname master1 -s admtool start main
