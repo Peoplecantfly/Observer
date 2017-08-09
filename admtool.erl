@@ -5,12 +5,8 @@
 -export([start/0]).
 -export([start/1]).
 
-
 -export([get_config/1]).
 -export([ping/0]).
--export([convert/1]).
-
-
 
 %% gen_server callbacks
 -export([init/1]).
@@ -25,7 +21,7 @@
 
 -record(config, {
 			cookie = "123"       :: string(),
-			nodes = ""            :: string(),
+			nodes = ""           :: list(),
 			apps = [observer]    :: [atom()]
 
 		}).
@@ -41,10 +37,8 @@ ping() ->
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 parse_cfg(Params) ->
 	parse_cfg(Params,  #config{}).
-
 parse_cfg([], Cfg) ->
 	Cfg;
 parse_cfg([{cookie, Val} | Rest], Cfg) ->
@@ -59,18 +53,18 @@ parse_cfg([{apps, Val} | Rest], Cfg) ->
 parse_cfg([{_Key, _Value} | Env], Cfg) ->
 	parse_cfg(Env, Cfg).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 get_config(CfgName) ->
 	CfgFile = case application:get_env(admtool, cfg) of
 		{ok, Name} -> Name;
-		_else -> ?CONFIG_FILENAME
+		_ -> ?CONFIG_FILENAME
 	end,
 	case file:consult(CfgFile) of
-		{ ok, Params } ->
+		{ok, Params} ->
 			PP = proplists:get_value(CfgName, Params, []),
 			parse_cfg(PP);
-		{ error, Reason } ->
-			io:format("Can't read http config ~p (reason ~p)~nUsing default config~n", [CfgFile, Reason]),
+		{error, Reason} ->
+			io:format("Can't read config ~p (reason ~p)~n", [CfgFile, Reason]),
 			#config{}
 	end.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -172,7 +166,3 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-
-convert(String) ->
-	Converted = lists:map(fun(X) -> "&#" ++ integer_to_list(X) ++ ";" end, String),
-	io:format("~s", [Converted]).
